@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>תיק ניירות ערך</title>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4aa;
+    --accent2: #0099ff;
+    --red: #ff4757;
+    --green: #00d4aa;
+    --text: #e8edf5;
+    --muted: #6b7fa3;
+    --gold: #f0b429;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+
+  /* Subtle grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .header-title h1 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-title p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .last-update {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .pulse {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 60px; height: 60px;
+    border-radius: 0 0 0 100%;
+    opacity: 0.08;
+  }
+
+  .summary-card.total::before { background: var(--accent2); }
+  .summary-card.profit::before { background: var(--green); }
+  .summary-card.count::before { background: var(--gold); }
+
+  .summary-card:hover { border-color: var(--accent); }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+
+  .summary-value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .summary-value.positive { color: var(--green); }
+  .summary-value.negative { color: var(--red); }
+  .summary-value.neutral { color: var(--text); }
+
+  .summary-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* Stocks section */
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Heebo', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0e1a;
+  }
+
+  .btn-primary:hover { background: #00f0c0; transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  .btn-icon {
+    width: 32px; height: 32px;
+    padding: 0;
+    justify-content: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+  }
+
+  .btn-icon:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Stock cards */
+  .stocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stock-card::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 14px 14px 0;
+    transition: opacity 0.2s;
+    opacity: 0;
+  }
+
+  .stock-card.positive::after { background: var(--green); opacity: 1; }
+  .stock-card.negative::after { background: var(--red); opacity: 1; }
+  .stock-card:hover { border-color: rgba(0,212,170,0.3); transform: translateX(-2px); }
+
+  .stock-left { display: flex; align-items: center; gap: 16px; }
+
+  .stock-icon {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .stock-info .stock-name {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .stock-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .stock-meta span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .stock-meta .symbol {
+    color: var(--accent2);
+    font-weight: 600;
+    font-size: 11px;
+    background: rgba(0,153,255,0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .stock-right { text-align: left; }
+
+  .price-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+  }
+
+  .current-price {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .change-badge {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .change-badge.positive { background: rgba(0,212,170,0.15); color: var(--green); }
+  .change-badge.negative { background: rgba(255,71,87,0.15); color: var(--red); }
+  .change-badge.neutral { background: var(--surface2); color: var(--muted); }
+
+  .stock-pnl {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: left;
+  }
+
+  .stock-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+    justify-content: flex-end;
+  }
+
+  .loading-indicator {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Add stock form */
+  .add-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: none;
+  }
+
+  .add-form.open { display: block; animation: slideDown 0.2s ease; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .add-form h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+
+  .form-group input, .form-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    direction: ltr;
+    text-align: right;
+  }
+
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .form-group input::placeholder { color: var(--muted); }
+
+  .form-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Refresh btn */
+  .refresh-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .refresh-info {
+    flex: 1;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Error/Status */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    max-width: 300px;
+    text-align: center;
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); }
+  .toast.error { border-color: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .stock-card { grid-template-columns: 1fr; }
+    .stock-right { text-align: right; }
+    .price-row { justify-content: flex-start; }
+    .stock-pnl { text-align: right; }
+    .stock-actions { justify-content: flex-start; }
+    .summary-value { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-title">
+      <h1>📊 תיק ניירות ערך</h1>
+      <p>מניות ת"א · עדכון שערים אוטומטי</p>
+    </div>
+    <div class="last-update">
+      <div class="pulse"></div>
+      <span id="lastUpdateText">לא עודכן עדיין</span>
+    </div>
+  </header>
+
+  <!-- Summary -->
+  <div class="summary-grid">
+    <div class="summary-card total">
+      <div class="summary-label">שווי תיק</div>
+      <div class="summary-value neutral" id="totalValue">—</div>
+      <div class="summary-sub">₪ סה"כ שווי נוכחי</div>
+    </div>
+    <div class="summary-card profit">
+      <div class="summary-label">רווח / הפסד</div>
+      <div class="summary-value neutral" id="totalPnL">—</div>
+      <div class="summary-sub" id="totalPnLPct">לעומת עלות קנייה</div>
+    </div>
+    <div class="summary-card count">
+      <div class="summary-label">מניות בתיק</div>
+      <div class="summary-value neutral" id="stockCount">0</div>
+      <div class="summary-sub">ניירות ערך</div>
+    </div>
+  </div>
+
+  <!-- Refresh bar -->
+  <div class="refresh-area">
+    <div class="refresh-info">
+      השערים מתעדכנים מהבורסה לניירות ערך בת"א
+    </div>
+    <button class="btn btn-ghost" onclick="refreshAll()" id="refreshBtn">
+      🔄 רענן שערים
+    </button>
+  </div>
+
+  <!-- Stocks -->
+  <div class="section-header">
+    <div class="section-title">ניירות ערך</div>
+    <button class="btn btn-primary" onclick="toggleAddForm()">
+      + הוסף נייר ערך
+    </button>
+  </div>
+
+  <!-- Add form -->
+  <div class="add-form" id="addForm">
+    <h3>➕ הוספת נייר ערך חדש</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>שם המניה</label>
+        <input type="text" id="newName" placeholder="לדוג׳ כך: בנק הפועלים">
+      </div>
+      <div class="form-group">
+        <label>סימול (מספר ב-TASE)</label>
+        <input type="text" id="newSymbol" placeholder="לדוג׳: 1120 או FIBI">
+      </div>
+      <div class="form-group">
+        <label>כמות מניות</label>
+        <input type="number" id="newQty" placeholder="100">
+      </div>
+      <div class="form-group">
+        <label>מחיר קנייה ממוצע (₪)</label>
+        <input type="number" id="newAvgPrice" placeholder="52.30" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>אמוג'י (אופציונלי)</label>
+        <input type="text" id="newEmoji" placeholder="🏦" maxlength="2">
+      </div>
+      <div class="form-group" style="grid-column: 1 / -1;">
+        <label>תיאור / שייך למי (אופציונלי)</label>
+        <input type="text" id="newDesc" placeholder='לדוג׳: הנייר ערך של הבן 1'>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="toggleAddForm()">ביטול</button>
+      <button class="btn btn-primary" onclick="addStock()">הוסף</button>
+    </div>
+  </div>
+
+  <div class="stocks-list" id="stocksList">
+    <!-- stocks rendered here -->
+  </div>
+
+  <div style="text-align:center; color: var(--muted); font-size: 12px; margin-top: 24px;">
+    נתונים: API ציבורי · מידע למטרות מעקב אישי בלבד
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────
+const STORAGE_KEY = 'tase_portfolio_v1';
+
+let portfolio = loadPortfolio();
+
+function loadPortfolio() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  // Default demo stocks
+  return [
+    { id: 1, name: 'בנק הפועלים', symbol: '1120', qty: 100, avgPrice: 30.50, emoji: '🏦', currentPrice: null, change: null },
+    { id: 2, name: 'טבע', symbol: '1167', qty: 50, avgPrice: 38.20, emoji: '💊', currentPrice: null, change: null },
+    { id: 3, name: 'אלביט מערכות', symbol: '1606', qty: 20, avgPrice: 520.00, emoji: '🛡️', currentPrice: null, change: null },
+  ];
+}
+
+function savePortfolio() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
+}
+
+// ─── TASE API via Yahoo Finance proxy ────────────────────────────
+// Uses Yahoo Finance which carries TASE stocks with .TA suffix
+async function fetchPrice(symbol) {
+  // Try multiple symbol formats for TASE
+  const formats = [
+    `${symbol}.TA`,
+    symbol
+  ];
+
+  for (const fmt of formats) {
+    try {
+      // Using Yahoo Finance v8 API (public, no key needed)
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${fmt}?interval=1d&range=2d`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      if (!result) continue;
+
+      const meta = result.meta;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.previousClose || meta.chartPreviousClose;
+      if (!price) continue;
+
+      const change = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+      return { price, change, prevClose };
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+// ─── Render ───────────────────────────────────────────────────────
+function fmt(n, decimals = 2) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('he-IL', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function renderStock(stock) {
+  const hasPrice = stock.currentPrice != null;
+  const value = hasPrice ? stock.currentPrice * stock.qty : null;
+  const cost = stock.avgPrice * stock.qty;
+  const pnl = value != null ? value - cost : null;
+  const pnlPct = pnl != null ? (pnl / cost * 100) : null;
+  const isPos = stock.change >= 0;
+  const pnlPos = pnl >= 0;
+
+  const changeClass = !hasPrice ? 'neutral' : (isPos ? 'positive' : 'negative');
+  const cardClass = !hasPrice ? '' : (isPos ? 'positive' : 'negative');
+
+  return `
+  <div class="stock-card ${cardClass}" id="stock-${stock.id}">
+    <div class="stock-left">
+      <div class="stock-icon">${stock.emoji || '📈'}</div>
+      <div class="stock-info">
+        <div class="stock-name">${stock.name}</div>
+        <div class="stock-meta">
+          <span class="symbol">${stock.symbol}</span>
+          <span>${fmt(stock.qty, 0)} מניות</span>
+          <span>עלות: ₪${fmt(stock.avgPrice)}</span>
+          ${stock.desc ? `<span style="color:var(--gold);font-weight:600">👤 ${stock.desc}</span>` : ''}
+        </div>
+        ${pnl != null ? `
+        <div class="stock-pnl" style="margin-top:6px; color: ${pnlPos ? 'var(--green)' : 'var(--red)'}">
+          ${pnlPos ? '▲' : '▼'} ₪${fmt(Math.abs(pnl))} (${pnlPos ? '+' : ''}${fmt(pnlPct)}%)
+          &nbsp;·&nbsp; שווי: ₪${fmt(value)}
+        </div>` : ''}
+      </div>
+    </div>
+    <div class="stock-right">
+      <div class="price-row">
+        <div class="current-price">
+          ${hasPrice
+            ? `₪${fmt(stock.currentPrice)}`
+            : `<span class="loading-indicator"></span>`}
+        </div>
+        ${hasPrice ? `
+        <div class="change-badge ${changeClass}">
+          ${isPos ? '+' : ''}${fmt(stock.change)}%
+        </div>` : ''}
+      </div>
+      <div class="stock-actions">
+        <button class="btn btn-icon" onclick="editStock(${stock.id})" title="עריכה">✏️</button>
+        <button class="btn btn-icon" onclick="deleteStock(${stock.id})" title="מחק">🗑️</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderAll() {
+  const list = document.getElementById('stocksList');
+  if (portfolio.length === 0) {
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">
+      אין ניירות ערך בתיק. לחץ על "הוסף נייר ערך" כדי להתחיל.
+    </div>`;
+    return;
+  }
+  list.innerHTML = portfolio.map(renderStock).join('');
+  updateSummary();
+}
+
+function updateSummary() {
+  let totalValue = 0, totalCost = 0, hasAll = true;
+
+  for (const s of portfolio) {
+    totalCost += s.avgPrice * s.qty;
+    if (s.currentPrice != null) {
+      totalValue += s.currentPrice * s.qty;
+    } else {
+      hasAll = false;
+    }
+  }
+
+  document.getElementById('stockCount').textContent = portfolio.length;
+
+  if (hasAll && portfolio.length > 0) {
+    const pnl = totalValue - totalCost;
+    const pnlPct = (pnl / totalCost * 100);
+    const pos = pnl >= 0;
+
+    const tvEl = document.getElementById('totalValue');
+    tvEl.textContent = `₪${fmt(totalValue, 0)}`;
+    tvEl.className = 'summary-value neutral';
+
+    const pnlEl = document.getElementById('totalPnL');
+    pnlEl.textContent = `${pos ? '+' : ''}₪${fmt(Math.abs(pnl), 0)}`;
+    pnlEl.className = `summary-value ${pos ? 'positive' : 'negative'}`;
+
+    document.getElementById('totalPnLPct').textContent =
+      `${pos ? '▲' : '▼'} ${fmt(Math.abs(pnlPct))}% מעלות הקנייה`;
+  }
+}
+
+// ─── Refresh ──────────────────────────────────────────────────────
+async function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-indicator"></span> מעדכן...';
+
+  const results = await Promise.allSettled(
+    portfolio.map(async (stock) => {
+      const data = await fetchPrice(stock.symbol);
+      if (data) {
+        stock.currentPrice = data.price;
+        stock.change = data.change;
+      }
+      return stock;
+    })
+  );
+
+  savePortfolio();
+  renderAll();
+
+  const now = new Date();
+  document.getElementById('lastUpdateText').textContent =
+    `עודכן ${now.toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'})}`;
+
+  const succeeded = results.filter(r => r.status === 'fulfilled' && r.value.currentPrice != null).length;
+  showToast(`עודכנו ${succeeded}/${portfolio.length} ניירות ערך`, succeeded > 0 ? 'success' : 'error');
+
+  btn.disabled = false;
+  btn.innerHTML = '🔄 רענן שערים';
+}
+
+// ─── Add / Delete / Edit ──────────────────────────────────────────
+function toggleAddForm() {
+  const f = document.getElementById('addForm');
+  f.classList.toggle('open');
+}
+
+function addStock() {
+  const name = document.getElementById('newName').value.trim();
+  const symbol = document.getElementById('newSymbol').value.trim();
+  const qty = parseFloat(document.getElementById('newQty').value);
+  const avgPrice = parseFloat(document.getElementById('newAvgPrice').value);
+  const emoji = document.getElementById('newEmoji').value.trim() || '📈';
+  const desc = document.getElementById('newDesc').value.trim();
+
+  if (!name || !symbol || isNaN(qty) || isNaN(avgPrice)) {
+    showToast('נא למלא את כל השדות', 'error');
+    return;
+  }
+
+  const newStock = {
+    id: Date.now(),
+    name, symbol, qty, avgPrice, emoji, desc,
+    currentPrice: null, change: null
+  };
+
+  portfolio.push(newStock);
+  savePortfolio();
+  toggleAddForm();
+
+  // Clear form
+  ['newName','newSymbol','newQty','newAvgPrice','newEmoji','newDesc'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+
+  renderAll();
+  showToast(`${name} נוסף לתיק`, 'success');
+
+  // Auto-fetch price for new stock
+  fetchPrice(symbol).then(data => {
+    if (data) {
+      const s = portfolio.find(x => x.id === newStock.id);
+      if (s) { s.currentPrice = data.price; s.change = data.change; }
+      savePortfolio();
+      renderAll();
+    }
+  });
+}
+
+function deleteStock(id) {
+  const stock = portfolio.find(s => s.id === id);
+  if (!stock) return;
+  if (!confirm(`למחוק את ${stock.name} מהתיק?`)) return;
+  portfolio = portfolio.filter(s => s.id !== id);
+  savePortfolio();
+  renderAll();
+  showToast(`${stock.name} הוסר מהתיק`);
+}
+
+function editStock(id) {
+  const stock = portfolio.find(s => s.id === id);
+  if (!stock) return;
+
+  const qty = prompt(`כמות מניות (${stock.name}):`, stock.qty);
+  if (qty === null) return;
+  const price = prompt(`מחיר קנייה ממוצע:`, stock.avgPrice);
+  if (price === null) return;
+
+  stock.qty = parseFloat(qty) || stock.qty;
+  stock.avgPrice = parseFloat(price) || stock.avgPrice;
+  const desc = prompt('תיאור / שייך למי (השאר ריק לביטול):', stock.desc || '');
+  if (desc !== null) stock.desc = desc;
+  savePortfolio();
+  renderAll();
+  showToast('עודכן בהצלחה', 'success');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────
+renderAll();
+// Auto-refresh on load
+setTimeout(refreshAll, 500);
+// Auto-refresh every 5 minutes
+setInterval(refreshAll, 5 * 60 * 1000);
+</script>
+</body>
+</html>
