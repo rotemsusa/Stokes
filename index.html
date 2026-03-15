@@ -456,6 +456,87 @@
     display: block;
   }
 
+  /* Login screen */
+  .login-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px;
+  }
+
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+  }
+
+  .login-card h2 {
+    font-size: 22px;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  .login-card p {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .login-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Heebo', sans-serif;
+    font-size: 16px;
+    outline: none;
+    text-align: center;
+    letter-spacing: 0.1em;
+    margin-bottom: 14px;
+    transition: border-color 0.2s;
+  }
+
+  .login-input:focus { border-color: var(--accent); }
+
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: #0a0e1a;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Heebo', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .login-btn:hover { background: #00f0c0; }
+
+  .login-error {
+    color: var(--red);
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 20px;
+  }
+
   /* Responsive */
   @media (max-width: 600px) {
     .stock-card { grid-template-columns: 1fr; }
@@ -468,7 +549,18 @@
 </style>
 </head>
 <body>
-<div class="container">
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div style="font-size:48px;margin-bottom:12px">📊</div>
+    <h2>תיק ניירות ערך</h2>
+    <p>הכנס קוד גישה כדי להמשיך</p>
+    <input class="login-input" type="password" id="loginInput" placeholder="קוד גישה" onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="login-btn" onclick="doLogin()">כניסה</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div class="container" id="mainApp" style="display:none">
 
   <header>
     <div class="header-title">
@@ -557,26 +649,83 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── State ───────────────────────────────────────────────────────
-const STORAGE_KEY = 'tase_portfolio_v1';
+// ─── Config ───────────────────────────────────────────────────────
+const PROXY_URL = 'https://stock-privet-246561042500.me-west1.run.app';
+const ACCESS_CODE = 'rotem'; // ← החלף בקוד שהגדרת ב-Cloud Run
 
-let portfolio = loadPortfolio();
-
-function loadPortfolio() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch(e) {}
-  // Default demo stocks
-  return [
-    { id: 1, name: 'בנק הפועלים', symbol: '1120', qty: 100, avgPrice: 30.50, emoji: '🏦', currentPrice: null, change: null },
-    { id: 2, name: 'טבע', symbol: '1167', qty: 50, avgPrice: 38.20, emoji: '💊', currentPrice: null, change: null },
-    { id: 3, name: 'אלביט מערכות', symbol: '1606', qty: 20, avgPrice: 520.00, emoji: '🛡️', currentPrice: null, change: null },
-  ];
+// ─── Login ────────────────────────────────────────────────────────
+function doLogin() {
+  const input = document.getElementById('loginInput').value.trim();
+  if (input === ACCESS_CODE) {
+    sessionStorage.setItem('portfolio_key', input);
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainApp').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('loginError').textContent = 'קוד גישה שגוי';
+    document.getElementById('loginInput').value = '';
+  }
 }
 
-function savePortfolio() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(portfolio));
+function getKey() {
+  return sessionStorage.getItem('portfolio_key');
+}
+
+// ─── API ──────────────────────────────────────────────────────────
+async function apiGet() {
+  const res = await fetch(`${PROXY_URL}/portfolio`, {
+    headers: { 'X-API-Key': getKey() }
+  });
+  if (!res.ok) throw new Error('שגיאת שרת');
+  const data = await res.json();
+  return data.stocks || [];
+}
+
+async function apiPost(action, payload) {
+  const res = await fetch(`${PROXY_URL}/portfolio`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-API-Key': getKey()
+    },
+    body: JSON.stringify({ action, ...payload })
+  });
+  if (!res.ok) throw new Error('שגיאת שרת');
+  return res.json();
+}
+
+// ─── State ────────────────────────────────────────────────────────
+let portfolio = [];
+
+async function loadPortfolio() {
+  try {
+    const stocks = await apiGet();
+    portfolio = stocks.map(s => ({
+      ...s,
+      qty: parseFloat(s.qty) || 0,
+      avgPrice: parseFloat(s.avgPrice) || 0,
+      currentPrice: s.currentPrice ? parseFloat(s.currentPrice) : null,
+      change: s.change ? parseFloat(s.change) : null,
+    }));
+  } catch(e) {
+    showToast('שגיאה בטעינת נתונים', 'error');
+  }
+}
+
+async function saveStock(action, stock) {
+  try {
+    await apiPost(action, { stock });
+  } catch(e) {
+    showToast('שגיאה בשמירה', 'error');
+  }
+}
+
+async function deleteStockRemote(row) {
+  try {
+    await apiPost('delete', { row });
+  } catch(e) {
+    showToast('שגיאה במחיקה', 'error');
+  }
 }
 
 // ─── TASE API via Yahoo Finance proxy ────────────────────────────
@@ -762,18 +911,19 @@ async function refreshAll() {
 
   const results = await Promise.allSettled(
     portfolio.map(async (stock) => {
-      if (stock.manualPrice) return stock; // שמור שער ידני
+      if (stock.manualPrice) return stock;
       const data = await fetchPrice(stock.symbol);
       if (data) {
         stock.currentPrice = data.price;
         stock.change = data.change;
         stock.prevClose = data.prevClose;
+        // שמור שערים ב-Sheet
+        await saveStock('update', stock).catch(() => {});
       }
       return stock;
     })
   );
 
-  savePortfolio();
   renderAll();
 
   const now = new Date();
@@ -808,80 +958,76 @@ function addStock() {
     return;
   }
 
-  const newStock = {
-    id: Date.now(),
-    name, symbol, qty, avgPrice, emoji, desc, purchaseDate, imgUrl,
-    currentPrice: null, change: null
-  };
+  const newStock = { name, symbol, qty, avgPrice, emoji, desc, purchaseDate, imgUrl, currentPrice: '', change: '' };
 
-  portfolio.push(newStock);
-  savePortfolio();
-  toggleAddForm();
-
-  // Clear form
-  ['newName','newSymbol','newQty','newAvgPrice','newEmoji','newDesc','newDate','newImg'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-
-  renderAll();
-  showToast(`${name} נוסף לתיק`, 'success');
-
-  // Auto-fetch price for new stock
-  fetchPrice(symbol).then(data => {
-    if (data) {
-      const s = portfolio.find(x => x.id === newStock.id);
-      if (s) { s.currentPrice = data.price; s.change = data.change; }
-      savePortfolio();
-      renderAll();
-    }
+  showToast('שומר...', '');
+  saveStock('add', newStock).then(async () => {
+    toggleAddForm();
+    ['newName','newSymbol','newQty','newAvgPrice','newEmoji','newDesc','newDate','newImg'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    await loadPortfolio();
+    renderAll();
+    showToast(`${name} נוסף לתיק`, 'success');
+    refreshAll();
   });
 }
 
-function setManualPrice(id) {
-  const stock = portfolio.find(s => s.id === id);
+function setManualPrice(row) {
+  const stock = portfolio.find(s => s._row == row);
   if (!stock) return;
   const input = prompt(`הזן שער נוכחי ידנית עבור ${stock.name} (₪):`, stock.currentPrice || '');
   if (input === null) return;
   const price = parseFloat(input);
   if (isNaN(price) || price <= 0) { showToast('שער לא תקין', 'error'); return; }
   stock.currentPrice = price;
-  stock.change = stock.prevClose ? ((price - stock.prevClose) / stock.prevClose * 100) : 0;
+  stock.change = 0;
   stock.manualPrice = true;
-  savePortfolio();
-  renderAll();
-  showToast(`שער ${stock.name} עודכן ידנית ל-₪${fmt(price)}`, 'success');
+  saveStock('update', stock).then(() => {
+    renderAll();
+    showToast(`שער ${stock.name} עודכן ל-₪${fmt(price)}`, 'success');
+  });
 }
 
-function deleteStock(id) {
-  const stock = portfolio.find(s => s.id === id);
+function deleteStock(row) {
+  const stock = portfolio.find(s => s._row == row);
   if (!stock) return;
   if (!confirm(`למחוק את ${stock.name} מהתיק?`)) return;
-  portfolio = portfolio.filter(s => s.id !== id);
-  savePortfolio();
-  renderAll();
-  showToast(`${stock.name} הוסר מהתיק`);
+  showToast('מוחק...', '');
+  deleteStockRemote(row).then(async () => {
+    await loadPortfolio();
+    renderAll();
+    showToast(`${stock.name} הוסר מהתיק`);
+  });
 }
 
-function editStock(id) {
-  const stock = portfolio.find(s => s.id === id);
+function editStock(row) {
+  const stock = portfolio.find(s => s._row == row);
   if (!stock) return;
 
   const qty = prompt(`כמות מניות (${stock.name}):`, stock.qty);
   if (qty === null) return;
   const price = prompt(`מחיר קנייה ממוצע:`, stock.avgPrice);
   if (price === null) return;
+  const desc = prompt('תיאור / שייך למי:', stock.desc || '');
+  if (desc === null) return;
+  const dateInput = prompt('תאריך רכישה (YYYY-MM-DD):', stock.purchaseDate || '');
+  if (dateInput === null) return;
+  const imgUrl = prompt('קישור לתמונה (URL):', stock.imgUrl || '');
+  if (imgUrl === null) return;
 
   stock.qty = parseFloat(qty) || stock.qty;
   stock.avgPrice = parseFloat(price) || stock.avgPrice;
-  const desc = prompt('תיאור / שייך למי (השאר ריק לביטול):', stock.desc || '');
-  if (desc !== null) stock.desc = desc;
-  const dateInput = prompt('תאריך רכישה ראשון (YYYY-MM-DD):', stock.purchaseDate || '');
-  if (dateInput !== null) stock.purchaseDate = dateInput;
-  const imgUrl = prompt('קישור לתמונה (URL):', stock.imgUrl || '');
-  if (imgUrl !== null) stock.imgUrl = imgUrl;
-  savePortfolio();
-  renderAll();
-  showToast('עודכן בהצלחה', 'success');
+  stock.desc = desc;
+  stock.purchaseDate = dateInput;
+  stock.imgUrl = imgUrl;
+
+  showToast('שומר...', '');
+  saveStock('update', stock).then(async () => {
+    await loadPortfolio();
+    renderAll();
+    showToast('עודכן בהצלחה', 'success');
+  });
 }
 
 // ─── Toast ────────────────────────────────────────────────────────
@@ -904,7 +1050,6 @@ function drawBuyVsCurrent(stock) {
   const color = isPos ? '#00d4aa' : '#ff4757';
   const W = 200, H = 48, padX = 8, padY = 8;
 
-  // 3 נקודות: קנייה → אמצע (מגמה) → נוכחי
   const minP = Math.min(buy, cur) * 0.998;
   const maxP = Math.max(buy, cur) * 1.002;
   const range = maxP - minP || 1;
@@ -912,7 +1057,6 @@ function drawBuyVsCurrent(stock) {
   const toY = v => H - padY - ((v - minP) / range) * (H - padY * 2);
   const x0 = padX, x1 = W / 2, x2 = W - padX;
   const y0 = toY(buy);
-  // נקודת אמצע עם קצת "תנועה" להראות מגמה
   const midVal = (buy + cur) / 2 + (cur - buy) * 0.15;
   const y1 = toY(Math.min(Math.max(midVal, minP), maxP));
   const y2 = toY(cur);
@@ -922,34 +1066,36 @@ function drawBuyVsCurrent(stock) {
 
   return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:48px;display:block;margin-top:8px" preserveAspectRatio="none">
     <defs>
-      <linearGradient id="bg-${stock.id}" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id="bg-${stock._row}" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="${color}" stop-opacity="0.18"/>
         <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
       </linearGradient>
     </defs>
-    <!-- אזור מילוי -->
-    <polygon points="${x0},${H} ${x0},${y0} ${x1},${y1} ${x2},${y2} ${x2},${H}"
-      fill="url(#bg-${stock.id})"/>
-    <!-- קו מגמה -->
-    <polyline points="${x0},${y0} ${x1},${y1} ${x2},${y2}"
-      fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-    <!-- נקודת קנייה -->
+    <polygon points="${x0},${H} ${x0},${y0} ${x1},${y1} ${x2},${y2} ${x2},${H}" fill="url(#bg-${stock._row})"/>
+    <polyline points="${x0},${y0} ${x1},${y1} ${x2},${y2}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${x0}" cy="${y0}" r="3.5" fill="var(--surface2)" stroke="${color}" stroke-width="1.5"/>
-    <!-- נקודת נוכחי -->
     <circle cx="${x2}" cy="${y2}" r="4" fill="${color}"/>
-    <!-- תווית קנייה -->
     <text x="${x0 + 5}" y="${y0 - 5}" fill="var(--muted)" font-size="8" font-family="Heebo,sans-serif">קנייה ₪${buy}</text>
-    <!-- תווית נוכחי -->
     <text x="${x2 - 5}" y="${y2 - 6}" fill="${color}" font-size="8" font-family="Heebo,sans-serif" text-anchor="end">₪${cur.toFixed(2)}</text>
-    <!-- אחוז שינוי באמצע -->
     <text x="${W/2}" y="${H - 3}" fill="${color}" font-size="9" font-family="Heebo,sans-serif" text-anchor="middle" font-weight="700">${pctStr} מהקנייה</text>
   </svg>`;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────
-renderAll();
-setTimeout(refreshAll, 500);
-setInterval(refreshAll, 5 * 60 * 1000);
+async function init() {
+  showToast('טוען נתונים...', '');
+  await loadPortfolio();
+  renderAll();
+  await refreshAll();
+  setInterval(refreshAll, 5 * 60 * 1000);
+}
+
+// בדוק אם כבר מחובר (sessionStorage)
+if (sessionStorage.getItem('portfolio_key') === ACCESS_CODE) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  init();
+}
 </script>
 </body>
 </html>
