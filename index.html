@@ -651,7 +651,7 @@
 <script>
 // ─── Config ───────────────────────────────────────────────────────
 const PROXY_URL = 'https://stock-privet-246561042500.me-west1.run.app';
-const ACCESS_CODE = 'rotem'; // ← החלף בקוד שהגדרת ב-Cloud Run
+const ACCESS_CODE = 'REPLACE_WITH_YOUR_CODE'; // ← החלף בקוד שהגדרת ב-Cloud Run
 
 // ─── Login ────────────────────────────────────────────────────────
 function doLogin() {
@@ -731,37 +731,18 @@ async function deleteStockRemote(row) {
 // ─── TASE API via Yahoo Finance proxy ────────────────────────────
 // Uses Yahoo Finance which carries TASE stocks with .TA suffix
 async function fetchPrice(symbol) {
-  // נרמל את הסימול - הסר .TA אם קיים כדי למנוע כפילות
-  const baseSymbol = symbol.toUpperCase().replace(/\.TA$/i, '');
-  const formats = [`${baseSymbol}.TA`, baseSymbol];
-
-  for (const tickerFmt of formats) {
-    try {
-      const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(tickerFmt)}?interval=1d&range=2d`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
-      const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) continue;
-      const wrapper = await res.json();
-      const data = JSON.parse(wrapper.contents);
-      const result = data?.chart?.result?.[0];
-      if (!result) continue;
-
-      const meta = result.meta;
-      let price = meta.regularMarketPrice;
-      let prevClose = meta.previousClose || meta.chartPreviousClose;
-      if (!price) continue;
-
-      // מניות ת"א נסחרות באגורות ב-Yahoo Finance - מחלקים ב-100
-      if (tickerFmt.endsWith('.TA')) {
-        price = price / 100;
-        if (prevClose) prevClose = prevClose / 100;
-      }
-
-      const change = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
-      return { price, change, prevClose };
-    } catch(e) { continue; }
-  }
-  return null;
+  try {
+    const base = symbol.toUpperCase().replace(/\.TA$/i, '');
+    const url = `${PROXY_URL}/price?symbol=${encodeURIComponent(base)}`;
+    const res = await fetch(url, {
+      headers: { 'X-API-Key': getKey() },
+      signal: AbortSignal.timeout(8000)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.error) return null;
+    return { price: data.price, change: data.change, prevClose: data.prevClose };
+  } catch(e) { return null; }
 }
 
 // ─── Render ───────────────────────────────────────────────────────
